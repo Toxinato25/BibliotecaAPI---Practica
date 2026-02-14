@@ -4,6 +4,8 @@ using BibliotecaAPI.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using BibliotecaAPI.DTOs;
 using Microsoft.JSInterop.Infrastructure;
+using FluentValidation;
+using BibliotecaAPI.Validators;
 
 namespace BibliotecaAPI.Controllers
 {
@@ -12,10 +14,13 @@ namespace BibliotecaAPI.Controllers
     public class BooksController : ControllerBase
     {
         private readonly IBookService _bookService;
+        private IValidator<BookDto> _validator;
 
-        public BooksController(IBookService bookService)
+        public BooksController(IBookService bookService,
+            IValidator<BookDto> _validator)
         {
             _bookService = bookService;
+            this._validator = _validator;
         }
 
         [HttpGet]
@@ -34,8 +39,10 @@ namespace BibliotecaAPI.Controllers
         [HttpPost]
         public async Task<IActionResult> AddBook([FromBody] BookDto dto)
         {
-            if (dto == null)
-                return BadRequest("Datos del libro no proporcionados");
+            var validator = await _validator.ValidateAsync(dto);
+
+            if (!validator.IsValid)
+                return BadRequest(validator.Errors);
 
             var result = await _bookService.AddBook(dto);
 

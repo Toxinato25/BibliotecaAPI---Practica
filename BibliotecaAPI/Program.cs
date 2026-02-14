@@ -1,6 +1,10 @@
 using BibliotecaAPI.Data;
-using BibliotecaAPI.Services.Interfaces;
+using BibliotecaAPI.DTOs;
+using BibliotecaAPI.Repository;
 using BibliotecaAPI.Services;
+using BibliotecaAPI.Services.Interfaces;
+using BibliotecaAPI.Validators;
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -18,6 +22,16 @@ builder.Services.AddDbContext<BibliotecaContext>(options =>
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IBookService, BookService>();
 builder.Services.AddScoped<ILoanService, LoanService>();
+
+// Inyectar los repositorios
+builder.Services.AddScoped<IRepository<Users>, UserRepository>(); 
+builder.Services.AddScoped<IRepository<Books>, BookRepository>();
+builder.Services.AddScoped<IRepository<Loans>, LoanRepository>();
+
+// Inyectar los validators
+builder.Services.AddScoped<IValidator<UserDto>, UserInsertValidator>();
+builder.Services.AddScoped<IValidator<LoanDto>, LoanInsertValidator>();
+builder.Services.AddScoped<IValidator<BookDto>, BookInsertValidator>();
 
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi

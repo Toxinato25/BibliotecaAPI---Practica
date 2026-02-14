@@ -2,6 +2,8 @@
 using Microsoft.AspNetCore.Http;
 using BibliotecaAPI.DTOs;
 using Microsoft.AspNetCore.Mvc;
+using FluentValidation;
+using BibliotecaAPI.Validators;
 
 namespace BibliotecaAPI.Controllers
 {
@@ -10,10 +12,13 @@ namespace BibliotecaAPI.Controllers
     public class LoansController : ControllerBase
     {
         private readonly ILoanService _loanservice;
+        private IValidator<LoanDto> _validator;
 
-        public LoansController(ILoanService loanservice)
+        public LoansController(ILoanService loanservice,
+            IValidator<LoanDto> _validator)
         {
             _loanservice = loanservice;
+            this._validator = _validator;
         }
 
         [HttpGet]
@@ -32,8 +37,10 @@ namespace BibliotecaAPI.Controllers
         [HttpPost]
         public async Task<IActionResult> AddLoan([FromBody] LoanDto dto)
         {
-            if (dto == null)
-                return BadRequest("Datos del prestamo no proporcionados");
+            var validator = await _validator.ValidateAsync(dto);
+
+            if(!validator.IsValid)
+                return BadRequest(validator.Errors);
 
             var result = await _loanservice.AddLoan(dto);
 

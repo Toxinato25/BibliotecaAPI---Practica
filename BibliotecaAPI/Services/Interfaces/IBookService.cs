@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using BibliotecaAPI.Models;
 using BibliotecaAPI.DTOs;
 
 namespace BibliotecaAPI.Services.Interfaces

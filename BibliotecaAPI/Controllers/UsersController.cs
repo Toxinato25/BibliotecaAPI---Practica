@@ -1,7 +1,10 @@
 ﻿using BibliotecaAPI.DTOs;
 using BibliotecaAPI.Services.Interfaces;
+using BibliotecaAPI.Validators;
+using FluentValidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.ComponentModel.DataAnnotations;
 
 namespace BibliotecaAPI.Controllers
 {
@@ -10,10 +13,13 @@ namespace BibliotecaAPI.Controllers
     public class UsersController : ControllerBase
     {
         private readonly IUserService _userService;
+        private IValidator<UserDto> _validator;
 
-        public UsersController(IUserService userService)
+        public UsersController(IUserService userService,
+            IValidator<UserDto> _validator)
         {
             _userService = userService;
+            this._validator = _validator;
         }
 
         [HttpGet]
@@ -37,8 +43,10 @@ namespace BibliotecaAPI.Controllers
         [HttpPost]
         public async Task<IActionResult> AddUser([FromBody] UserDto dto)
         {
-            if (dto == null)
-                return BadRequest("Datos de usuario invalido");
+            var validator = await _validator.ValidateAsync(dto);
+            
+            if (!validator.IsValid)
+                return BadRequest(validator.Errors);
 
             var result = await _userService.AddUser(dto);
 
@@ -51,8 +59,10 @@ namespace BibliotecaAPI.Controllers
         [HttpPut("update/{id}")]
         public async Task<IActionResult> UpdateUser(int id, [FromBody] UserDto dto)
         {
-            if (dto == null || id != dto.UserId)
-                return BadRequest("Datos de usuario invalido");
+            var validators = await _validator.ValidateAsync(dto);
+
+            if (!validators.IsValid)
+                return BadRequest(validators.Errors);
 
             var result = await _userService.UpdateUser(id, dto);
 

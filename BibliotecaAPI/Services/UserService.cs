@@ -1,5 +1,6 @@
 ﻿using BibliotecaAPI.Data;
 using BibliotecaAPI.DTOs;
+using BibliotecaAPI.Repository;
 using BibliotecaAPI.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System.Runtime.CompilerServices;
@@ -8,24 +9,28 @@ namespace BibliotecaAPI.Services
 {
     public class UserService : IUserService
     {
-        private readonly BibliotecaContext _context;
-        public UserService(BibliotecaContext context)
+        private IRepository<Users> _UsersRepository;
+        public UserService(IRepository<Users> _UsersRepository)
         {
-            _context = context;
+            this._UsersRepository = _UsersRepository;
         }
-        public async Task<IEnumerable<UserDto>> GetAllUsers() =>
-            await _context.Users.Select(u => new UserDto
-            {
-                UserId = u.UserId,
-                UserName = u.Username,
-                Email = u.Email,
-                RegisteredAt = u.RegisteredAt
+        public async Task<IEnumerable<UserDto>> GetAllUsers()
+        {
+            var users = await _UsersRepository.Get();
 
-            }).ToListAsync();
+            return users.Select(user => new UserDto
+            {
+                UserId = user.UserId,
+                UserName = user.Username,
+                Email = user.Email,
+                RegisteredAt = user.RegisteredAt
+            }).ToList();
+        }
+            
 
         public async Task<UserDto> GetUserById(int id)
         {
-            var user = await _context.Users.FindAsync(id);
+            var user = await _UsersRepository.GetById(id);
 
             if (user == null)
                 return null;
@@ -49,8 +54,10 @@ namespace BibliotecaAPI.Services
                 Email = dto.Email,
             };
 
-            await _context.Users.AddAsync(userInsert);
-            await _context.SaveChangesAsync();
+            userInsert.RegisteredAt = DateTime.Now;
+
+            await _UsersRepository.Create(userInsert);
+            await _UsersRepository.Save();
 
             var userResult = new UserDto // lo que devuelve al header 
             {
@@ -65,7 +72,7 @@ namespace BibliotecaAPI.Services
 
         public async Task<UserDto> UpdateUser(int id, UserDto dto)
         {
-            var userToUpdate = await _context.Users.FindAsync(id);
+            var userToUpdate = await _UsersRepository.GetById(id);
 
             if(userToUpdate == null)
                 return null;
@@ -73,7 +80,7 @@ namespace BibliotecaAPI.Services
             userToUpdate.Username = dto.UserName;
             userToUpdate.Email = dto.Email;
             
-            await _context.SaveChangesAsync();
+            await _UsersRepository.Save();
 
             var userResult = new UserDto // lo que devuelve al header
             {
@@ -88,13 +95,13 @@ namespace BibliotecaAPI.Services
 
         public async Task<bool> DeleteUser(int id)
         {
-            var userToDelete = await _context.Users.FindAsync(id);
+            var userToDelete = await _UsersRepository.GetById(id);
 
             if (userToDelete == null)
                 return false;
-            
-            _context.Users.Remove(userToDelete);
-            await _context.SaveChangesAsync();
+
+            _UsersRepository.Delete(userToDelete);
+            await _UsersRepository.Save();
 
             return true;
         }

@@ -1,5 +1,6 @@
 ﻿using BibliotecaAPI.Data;
 using BibliotecaAPI.DTOs;
+using BibliotecaAPI.Repository;
 using BibliotecaAPI.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -9,35 +10,43 @@ namespace BibliotecaAPI.Services
 {
     public class LoanService : ILoanService
     {
-        private readonly BibliotecaContext _context;
+        private readonly IRepository<Loans> _LoansRepository;
+        private readonly IRepository<Users> _UsersRepository;
+        private readonly IRepository<Books> _BooksRepository;
 
-        public LoanService(BibliotecaContext context)
+        public LoanService(IRepository<Loans> LoansRepository,
+            IRepository<Users> UsersRepository,
+            IRepository<Books> BooksRepository)
         {
-            _context = context;
+            _LoansRepository = LoansRepository;
+            _BooksRepository = BooksRepository;
+            _UsersRepository = UsersRepository;
 
         }
 
-        public async Task<IEnumerable<LoanDto>> GetAllLoans() =>
-            await _context.Loans
-            .Include(l => l.User)
-            .Include(l => l.Book)
-            .Select(l => new LoanDto
+        public async Task<IEnumerable<LoanDto>> GetAllLoans()
+        {
+            var loans = await _LoansRepository.Get();
+
+            var result = loans.Select(loan => new LoanDto
             {
-                LoanId = l.LoanId,
-                UserId = l.UserId,
-                UserName = l.User.Username,
-                BookId = l.BookId,
-                BookTitle = l.Book.Title,
-                LoanDate = l.LoanDate,
-                ReturnDate = l.ReturnDate
-            }).ToListAsync();
+                LoanId = loan.LoanId,
+                UserId = loan.UserId,
+                UserName = loan.User.Username,
+                BookId = loan.BookId,
+                BookTitle = loan.Book.Title,
+                LoanDate = loan.LoanDate,
+                ReturnDate = loan.ReturnDate
+            });
+
+            return result;
+
+
+        }
 
         public async Task<LoanDto> GetLoanById(int id)
         {
-            var loan = await _context.Loans
-                .Include(l => l.User)
-                .Include(l => l.Book)
-                .FirstOrDefaultAsync(l => l.LoanId == id);
+           var loan = await _LoansRepository.GetById(id);
 
 
             if (loan == null)
@@ -60,11 +69,11 @@ namespace BibliotecaAPI.Services
 
         public async Task<LoanDto> AddLoan(LoanDto loanDto)
         {
-            var user = await _context.Users.FindAsync(loanDto.UserId);
+            var user = await _UsersRepository.GetById(loanDto.UserId);
                 if (user == null)
                     return null;
 
-            var book = await _context.Books.FindAsync(loanDto.BookId);
+            var book = await _BooksRepository.GetById(loanDto.BookId);
                 if (book == null)
                 return null;
 
@@ -75,8 +84,10 @@ namespace BibliotecaAPI.Services
                 ReturnDate = null,
             };
 
-            await _context.Loans.AddAsync(loanInsert);
-            await _context.SaveChangesAsync();
+            loanInsert.LoanDate = DateTime.Now;
+
+            await _LoansRepository.Create(loanInsert);
+            await _LoansRepository.Save();
 
             var loanResult = new LoanDto // lo que se retorna al header
             {
@@ -94,10 +105,7 @@ namespace BibliotecaAPI.Services
 
         public async Task<LoanDto> ReturnLoan(int id)
         {
-            var loanToReturn = await _context.Loans
-                .Include(l => l.User)
-                .Include(l => l.Book)
-                .FirstOrDefaultAsync(l => l.LoanId == id);
+            var loanToReturn = await _LoansRepository.GetById(id);
 
             if (loanToReturn == null || loanToReturn.ReturnDate != null)
             {
@@ -106,7 +114,7 @@ namespace BibliotecaAPI.Services
 
             loanToReturn.ReturnDate = DateTime.Now;
 
-            await _context.SaveChangesAsync();
+            await _LoansRepository.Save();
 
             var loanReturned = new LoanDto // lo que se retorna al header
             {

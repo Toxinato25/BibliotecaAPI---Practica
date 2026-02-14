@@ -1,6 +1,6 @@
 ﻿using BibliotecaAPI.Data;
+using BibliotecaAPI.Repository;
 using BibliotecaAPI.DTOs;
-using BibliotecaAPI.Models;
 using BibliotecaAPI.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System.Reflection;
@@ -9,25 +9,29 @@ namespace BibliotecaAPI.Services
 {
     public class BookService : IBookService
     {
-        private readonly BibliotecaContext _context; 
-        public BookService(BibliotecaContext context)
+        private IRepository<Books> _repository;
+        public BookService(IRepository<Books> repository)
         {
-            _context = context;
+            _repository = repository;
         }
 
-        public async Task<IEnumerable<BookDto>> GetAllBooks() => 
-            await _context.Books.Select(b => new BookDto
+        public async Task<IEnumerable<BookDto>> GetAllBooks()
+        {
+            var books = await _repository.Get();
+
+            return books.Select(book => new BookDto
             {
-                BookId = b.BookId,
-                Title = b.Title,
-                Author = b.Author,
-                PublishedYear = b.PublishedYear,
-                Genre = b.Genre
-            }).ToListAsync();
+                BookId = book.BookId,
+                Title = book.Title,
+                Author = book.Author,
+                PublishedYear = book.PublishedYear,
+                Genre = book.Genre
+            });
+        }
 
         public async Task<BookDto> GetBookById(int id)
         {
-            var book = await _context.Books.FindAsync(id);
+            var book = await _repository.GetById(id);
 
             if (book == null)
             {
@@ -56,8 +60,8 @@ namespace BibliotecaAPI.Services
                 Genre = bookDto.Genre
             };
 
-            await _context.Books.AddAsync(bookinsert);
-            await _context.SaveChangesAsync();
+            await _repository.Create(bookinsert);
+            await _repository.Save();
 
             var bookResult = new BookDto // lo que se mandara al header para ver para ver de donde se obtuvo
             {
@@ -73,7 +77,7 @@ namespace BibliotecaAPI.Services
 
         public async Task<BookDto> UpdateBook(int id, BookDto bookDto)
         {
-            var bookToUpdate = await _context.Books.FindAsync(id);
+            var bookToUpdate = await _repository.GetById(id);
 
             if (bookToUpdate == null)
             {
@@ -85,7 +89,8 @@ namespace BibliotecaAPI.Services
             bookToUpdate.PublishedYear = bookDto.PublishedYear;
             bookToUpdate.Genre = bookDto.Genre;
 
-            await _context.SaveChangesAsync();
+            _repository.Update(bookToUpdate);
+            await _repository.Save();
 
             var bookResult = new BookDto
             {
@@ -101,15 +106,15 @@ namespace BibliotecaAPI.Services
         
         public async Task<bool> DeleteBook(int id)
         {
-            var bookDelete = await _context.Books.FindAsync(id);
+            var bookDelete = await _repository.GetById(id);
 
             if (bookDelete == null)
             {
                 return false;
             }
 
-            _context.Books.Remove(bookDelete);
-            await _context.SaveChangesAsync();
+            _repository.Delete(bookDelete);
+            await _repository.Save();
 
             return true;
         }
